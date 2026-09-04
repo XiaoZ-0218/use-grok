@@ -114,6 +114,10 @@ function buildGrokArgs(prompt, options = {}) {
     args.push("--json-schema", options.jsonSchema);
   }
 
+  if (options.verbatim) {
+    args.push("--verbatim");
+  }
+
   return args;
 }
 
@@ -431,12 +435,37 @@ export function buildXSearchPrompt({ query, from, mode, limit }) {
     lines.push(`- limit: ${limit}`);
   }
   lines.push("");
-  lines.push("Return a search-result list like web search hits, not a synthesized summary.");
-  lines.push("For each post include: url, handle, snippet, and date if known.");
+  lines.push("Return only a search-result list like web search hits, not a synthesized summary.");
+  lines.push("Do not write any preamble, narration, or closing remarks.");
+  lines.push("Do not mention tools, skills, or use-grok.");
+  lines.push("For each post use exactly this shape:");
+  lines.push("1. url: <url>");
+  lines.push("   handle: @<handle>");
+  lines.push("   snippet: <text>");
+  lines.push("   date: <iso-or-unknown>");
   lines.push(
-    "If X search is unavailable or the operation fails, say so plainly instead of falling back to web_search."
+    "If X search is unavailable or the operation fails, output exactly X_SEARCH_UNAVAILABLE instead of falling back to web_search."
   );
   return lines.join("\n");
+}
+
+/**
+ * Drop Grok's pre-tool narration from an X search reply, keeping the hit list.
+ * Template examples using `<url>` are left unchanged so tests that echo the
+ * prompt still see the full text.
+ * @param {string} raw
+ * @returns {string}
+ */
+export function extractXSearchHits(raw) {
+  const text = String(raw ?? "");
+  const hit = text.match(/\d+\.\s*url:\s*https?:\/\//i);
+  if (hit && hit.index != null) {
+    return text.slice(hit.index).trim();
+  }
+  if (/^\s*X_SEARCH_UNAVAILABLE\s*$/m.test(text)) {
+    return "X_SEARCH_UNAVAILABLE";
+  }
+  return text.trim();
 }
 
 /**
@@ -450,6 +479,7 @@ export function buildXSearchPrompt({ query, from, mode, limit }) {
 export async function runXSearch(cwd, prompt, options = {}) {
   return runHeadlessAgent(cwd, prompt, {
     alwaysApprove: true,
+    verbatim: true,
     outputFormat: "plain",
     ...options,
   });

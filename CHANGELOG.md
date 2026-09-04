@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- `x-search` command: search X (Twitter) via Grok's backend XSearch / `x_keyword_search`. Supports `--from`, `--mode` (`latest` or `top`), `--limit` (default `10`), `--model`, `--effort`, and `--json`. Instructs Grok to return a web-search-style hit list and not to fall back to `web_search`.
+- `x-search` command: search X (Twitter) via Grok's backend XSearch / `x_keyword_search`. Supports `--from`, `--mode` (`latest` or `top`), `--limit` (default `10`), `--model`, `--effort`, and `--json`. Instructs Grok to return a web-search-style hit list and not to fall back to `web_search`. The prompt forbids preamble/narration, the CLI passes `--verbatim`, and `extractXSearchHits` strips any leftover pre-tool chatter so `--json` `output` starts at the first `url: https://` hit.
 
 ## [0.2.0] - 2026-07-27
 

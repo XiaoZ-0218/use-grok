@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
 
-import { buildXSearchPrompt } from "../src/grok.mjs";
+import { buildXSearchPrompt, extractXSearchHits } from "../src/grok.mjs";
 import { runCli, fakeGrokEnv } from "./helpers.mjs";
 
 describe("buildXSearchPrompt", () => {
@@ -33,6 +33,64 @@ describe("buildXSearchPrompt", () => {
     assert.match(prompt, /from:elonmusk/);
     assert.match(prompt, /- query: openai/);
   });
+
+  it("forbids preamble and requires a list-only hit format", () => {
+    const prompt = buildXSearchPrompt({
+      query: "grok 4.6",
+      mode: "Latest",
+      limit: 10,
+    });
+    assert.match(prompt, /Do not write any preamble/);
+    assert.match(prompt, /do not mention tools, skills, or use-grok/i);
+    assert.match(prompt, /url: <url>/);
+    assert.match(prompt, /handle: @<handle>/);
+    assert.match(prompt, /snippet: <text>/);
+    assert.match(prompt, /date: <iso-or-unknown>/);
+    assert.match(prompt, /X_SEARCH_UNAVAILABLE/);
+  });
+});
+
+describe("extractXSearchHits", () => {
+  it("keeps template-only grok output unchanged", () => {
+    const raw =
+      "Fake Grok says: For each post use exactly this shape:\n1. url: <url>\n   handle: @<handle>";
+    assert.strictEqual(extractXSearchHits(raw), raw);
+  });
+
+  it("drops preamble before the first real hit", () => {
+    const raw = [
+      "I'll search X for recent posts.",
+      "I'll run the skill's X-search command.",
+      "1. url: https://x.com/elonmusk/status/1",
+      "   handle: @elonmusk",
+      "   snippet: Can’t trust OpenAI",
+      "   date: 2026-08-04T14:46:28Z",
+    ].join("\n");
+    const extracted = extractXSearchHits(raw);
+    assert.strictEqual(
+      extracted,
+      [
+        "1. url: https://x.com/elonmusk/status/1",
+        "   handle: @elonmusk",
+        "   snippet: Can’t trust OpenAI",
+        "   date: 2026-08-04T14:46:28Z",
+      ].join("\n")
+    );
+    assert.doesNotMatch(extracted, /I'll search/);
+  });
+
+  it("finds a hit glued to preamble on the same line", () => {
+    const raw =
+      "I'll search X.1. url: https://x.com/elonmusk/status/1\n   handle: @elonmusk";
+    const extracted = extractXSearchHits(raw);
+    assert.ok(extracted.startsWith("1. url: https://x.com/elonmusk/status/1"));
+    assert.doesNotMatch(extracted, /I'll search/);
+  });
+
+  it("returns X_SEARCH_UNAVAILABLE when there are no hits", () => {
+    const raw = "I'll try X search.\nX_SEARCH_UNAVAILABLE";
+    assert.strictEqual(extractXSearchHits(raw), "X_SEARCH_UNAVAILABLE");
+  });
 });
 
 describe("x-search", () => {
@@ -44,6 +102,7 @@ describe("x-search", () => {
     assert.match(parsed.output, /x_keyword_search/);
     assert.match(parsed.output, /grok 4\.6/);
     assert.match(parsed.output, /approve=always/);
+    assert.match(parsed.output, /verbatim/);
   });
 
   it("passes from, mode, and limit into the grok prompt", () => {

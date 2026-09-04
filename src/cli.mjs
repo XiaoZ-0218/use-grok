@@ -23,6 +23,7 @@ import {
   runTask,
   runXSearch,
   buildXSearchPrompt,
+  extractXSearchHits,
   schemaInstructionsFromPath,
 } from "./grok.mjs";
 import {
@@ -545,12 +546,13 @@ async function handleXSearch(args) {
   });
 
   const result = await runXSearch(cwd, prompt, commonGrokOptions(flags));
+  const output = extractXSearchHits(result.rawOutput);
 
   if (flags.json) {
-    outputResult({ status: result.status, output: result.rawOutput.trim() }, { json: true });
+    outputResult({ status: result.status, output }, { json: true });
   } else {
-    process.stdout.write(result.rawOutput);
-    if (!result.rawOutput.endsWith("\n")) process.stdout.write("\n");
+    process.stdout.write(output);
+    if (!output.endsWith("\n")) process.stdout.write("\n");
   }
 
   return result.status === 0 ? 0 : 1;

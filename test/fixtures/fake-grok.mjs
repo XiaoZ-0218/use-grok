@@ -111,7 +111,8 @@ if (process.env.USE_GROK_TEST_SKIP_WRITE !== "1") {
 const meta = [];
 if (model) meta.push(`model=${model}`);
 if (effort) meta.push(`effort=${effort}`);
-if (args.includes("--always-approve")) meta.push("approve=always");
+  if (args.includes("--always-approve")) meta.push("approve=always");
+  if (args.includes("--verbatim")) meta.push("verbatim");
 const suffix = meta.length > 0 ? ` (${meta.join(", ")})` : "";
 console.log(`Fake Grok says: ${prompt}${suffix}`);
 process.exit(0);
