@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- `x-search` command: search X (Twitter) via Grok's backend XSearch / `x_keyword_search`. Supports `--from`, `--mode` (`latest` or `top`), `--limit` (default `10`), `--model`, `--effort`, and `--json`. Instructs Grok to return a web-search-style hit list and not to fall back to `web_search`. The prompt forbids preamble/narration, the CLI passes `--verbatim`, and `extractXSearchHits` strips any leftover pre-tool chatter so `--json` `output` starts at the first `url: https://` hit.
+- `x-search` command: search X (Twitter) via Grok's backend XSearch. Supports `--kind` (`keyword`, `semantic`, `user`, `thread`), `--from`, `--mode` (`latest` or `top`), `--limit` (default `10`), `--model`, `--effort`, and `--json`. Keyword/semantic hits include full post `text`; user hits include name/bio; thread fetch takes a post URL. Instructs Grok not to fall back to `web_search`. The prompt forbids preamble/narration, the CLI passes `--verbatim`, and `extractXSearchHits` strips leftover pre-tool chatter so `--json` `output` starts at the first `url: https://` hit.
 
 ## [0.2.0] - 2026-07-27
 

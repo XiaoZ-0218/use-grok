@@ -55,6 +55,9 @@ use-grok image "把天空改成日落" --ref rocket.png --out rocket-sunset.png
 # 搜索 X（Twitter）
 use-grok x-search "grok 4.6" --json
 use-grok x-search "openai" --from elonmusk --mode latest --limit 5
+use-grok x-search "what is grok saying about tesla" --kind semantic --json
+use-grok x-search "elon musk" --kind user --json
+use-grok x-search "https://x.com/elonmusk/status/2084652192024125768" --kind thread --json
 ```
 
 ## 命令
@@ -85,9 +88,9 @@ use-grok x-search "openai" --from elonmusk --mode latest --limit 5
 
 由于图像工具需要写文件，该命令始终以写权限运行 Grok（等同 `run --write`）。CLI 会指示 Grok 只写入指定的 `--out` 文件，但这只是提示词约束，并非沙箱隔离。运行结束后 CLI 会校验 `--out` 文件存在且非空，否则判定失败。
 
-### `use-grok x-search <query> [--from <handle>] [--mode latest|top] [--limit <n>] [--model <model>] [--effort low|medium|high] [--json]`
+### `use-grok x-search <query> [--kind keyword|semantic|user|thread] [--from <handle>] [--mode latest|top] [--limit <n>] [--model <model>] [--effort low|medium|high] [--json]`
 
-通过 Grok 后端的 XSearch / `x_keyword_search` 搜索 X（Twitter）。提示词禁止回退到 `web_search`。结果是类似网页搜索的命中列表（url、handle、snippet，有日期则带 date），不是综述。`--from` 会加上 `from:handle`（自动去掉开头的 `@`）。`--mode` 默认 `latest`；`--limit` 默认 `10`。
+通过 Grok 后端的 XSearch 搜索 X（Twitter）。`--kind` 选择后端工具：`keyword`（`x_keyword_search`，默认）、`semantic`（`x_semantic_search`）、`user`（`x_user_search`）或 `thread`（`x_thread_fetch`）。提示词禁止回退到 `web_search`。帖子结果是命中列表，含 url、handle、全文 `text` 和 date；用户结果含 url、handle、name、bio。`--from` 会加上 `from:handle`（自动去掉开头的 `@`），`--mode` 选择 Latest/Top；这两项只用于 keyword/semantic。`--mode` 默认 `latest`；`--limit` 默认 `10`。`--kind thread` 时，query 应是帖子 URL 或 status id。
 
 ### `use-grok runs [run-id] [--wait] [--json]`
 

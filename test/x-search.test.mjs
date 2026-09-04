@@ -19,7 +19,8 @@ describe("buildXSearchPrompt", () => {
     assert.match(prompt, /- limit: 10/);
     assert.match(prompt, /url/);
     assert.match(prompt, /handle/);
-    assert.match(prompt, /snippet/);
+    assert.match(prompt, /text: <full post text>/);
+    assert.doesNotMatch(prompt, /snippet/);
     assert.doesNotMatch(prompt, /from:/);
   });
 
@@ -44,9 +45,39 @@ describe("buildXSearchPrompt", () => {
     assert.match(prompt, /do not mention tools, skills, or use-grok/i);
     assert.match(prompt, /url: <url>/);
     assert.match(prompt, /handle: @<handle>/);
-    assert.match(prompt, /snippet: <text>/);
+    assert.match(prompt, /text: <full post text>/);
     assert.match(prompt, /date: <iso-or-unknown>/);
     assert.match(prompt, /X_SEARCH_UNAVAILABLE/);
+  });
+
+  it("selects semantic, user, and thread tools", () => {
+    const semantic = buildXSearchPrompt({
+      query: "what is grok saying about tesla",
+      kind: "semantic",
+      mode: "Latest",
+      limit: 5,
+    });
+    assert.match(semantic, /x_semantic_search/);
+    assert.doesNotMatch(semantic, /x_keyword_search/);
+    assert.match(semantic, /text: <full post text>/);
+
+    const user = buildXSearchPrompt({
+      query: "elon musk",
+      kind: "user",
+      limit: 5,
+    });
+    assert.match(user, /x_user_search/);
+    assert.doesNotMatch(user, /- mode:/);
+    assert.match(user, /name: <display name>/);
+    assert.match(user, /bio: <bio>/);
+
+    const thread = buildXSearchPrompt({
+      query: "https://x.com/elonmusk/status/1",
+      kind: "thread",
+    });
+    assert.match(thread, /x_thread_fetch/);
+    assert.doesNotMatch(thread, /- mode:/);
+    assert.match(thread, /text: <full post text>/);
   });
 });
 
@@ -63,7 +94,7 @@ describe("extractXSearchHits", () => {
       "I'll run the skill's X-search command.",
       "1. url: https://x.com/elonmusk/status/1",
       "   handle: @elonmusk",
-      "   snippet: Can’t trust OpenAI",
+      "   text: Can’t trust OpenAI",
       "   date: 2026-08-04T14:46:28Z",
     ].join("\n");
     const extracted = extractXSearchHits(raw);
@@ -72,7 +103,7 @@ describe("extractXSearchHits", () => {
       [
         "1. url: https://x.com/elonmusk/status/1",
         "   handle: @elonmusk",
-        "   snippet: Can’t trust OpenAI",
+        "   text: Can’t trust OpenAI",
         "   date: 2026-08-04T14:46:28Z",
       ].join("\n")
     );
@@ -152,5 +183,21 @@ describe("x-search", () => {
     const result = runCli(["x-search", "hello", "--limit", "0"], { env: fakeGrokEnv() });
     assert.notStrictEqual(result.status, 0);
     assert.match(result.stderr, /Invalid limit/);
+  });
+
+  it("passes --kind into the grok prompt", () => {
+    const result = runCli(["x-search", "elon musk", "--kind", "user", "--json"], {
+      env: fakeGrokEnv(),
+    });
+    assert.strictEqual(result.status, 0, result.stderr);
+    const parsed = JSON.parse(result.stdout);
+    assert.match(parsed.output, /x_user_search/);
+    assert.doesNotMatch(parsed.output, /x_keyword_search/);
+  });
+
+  it("rejects an invalid kind", () => {
+    const result = runCli(["x-search", "hello", "--kind", "gif"], { env: fakeGrokEnv() });
+    assert.notStrictEqual(result.status, 0);
+    assert.match(result.stderr, /Invalid kind/);
   });
 });
