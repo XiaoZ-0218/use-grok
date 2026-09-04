@@ -398,3 +398,59 @@ export async function runImage(cwd, prompt, options = {}) {
     ...options,
   });
 }
+
+// ---------------------------------------------------------------------------
+// X search via Grok Build's backend XSearch / x_keyword_search
+// ---------------------------------------------------------------------------
+
+export const X_SEARCH_MODES = ["latest", "top"];
+
+/**
+ * Build the headless prompt that drives Grok's backend X search and asks for
+ * web-search-style hits instead of a synthesized summary.
+ * @param {object} params
+ * @param {string} params.query
+ * @param {string} [params.from] - X handle without leading @
+ * @param {string} [params.mode] - Latest or Top
+ * @param {number} [params.limit]
+ * @returns {string}
+ */
+export function buildXSearchPrompt({ query, from, mode, limit }) {
+  const lines = [];
+  lines.push(
+    "Use X search (x_keyword_search / the XSearch backend), NOT web_search or web_fetch."
+  );
+  lines.push(`- query: ${query}`);
+  if (from) {
+    lines.push(`- from: ${from} (include from:${from} in the X query)`);
+  }
+  if (mode) {
+    lines.push(`- mode: ${mode}`);
+  }
+  if (limit != null) {
+    lines.push(`- limit: ${limit}`);
+  }
+  lines.push("");
+  lines.push("Return a search-result list like web search hits, not a synthesized summary.");
+  lines.push("For each post include: url, handle, snippet, and date if known.");
+  lines.push(
+    "If X search is unavailable or the operation fails, say so plainly instead of falling back to web_search."
+  );
+  return lines.join("\n");
+}
+
+/**
+ * Run an X search task. Backend search needs auto-approval so headless runs
+ * do not stall on a permission prompt.
+ * @param {string} cwd
+ * @param {string} prompt
+ * @param {object} options
+ * @returns {Promise<{ status: number, stdout: string, stderr: string }>}
+ */
+export async function runXSearch(cwd, prompt, options = {}) {
+  return runHeadlessAgent(cwd, prompt, {
+    alwaysApprove: true,
+    outputFormat: "plain",
+    ...options,
+  });
+}

@@ -4,7 +4,7 @@
 
 Agent 无关的 CLI 桥接工具，用于对接 [Grok Build CLI](https://x.ai) (`grok`)。
 
-`use-grok` 让任何 AI Agent、IDE 扩展、Shell 脚本或 CI 流水线都能调用 Grok 进行代码审查、设计 critique、任务委托以及图像生成/编辑——无需 Claude Code 或任何特定编辑器插件。
+`use-grok` 让任何 AI Agent、IDE 扩展、Shell 脚本或 CI 流水线都能调用 Grok 进行代码审查、设计 critique、任务委托、图像生成/编辑以及 X（Twitter）搜索——无需 Claude Code 或任何特定编辑器插件。
 
 > 灵感来源于 [`grok-build-plugin-cc`](https://github.com/xai-org/grok-build-plugin-cc) Claude Code 插件。本项目沿用其核心设计理念，并将其重新封装为通用的 `npx use-grok` 命令，适用于所有环境。
 
@@ -51,6 +51,10 @@ use-grok image "一幅扁平风格的城市上空火箭插画" --out rocket.png 
 
 # 编辑已有图像
 use-grok image "把天空改成日落" --ref rocket.png --out rocket-sunset.png
+
+# 搜索 X（Twitter）
+use-grok x-search "grok 4.6" --json
+use-grok x-search "openai" --from elonmusk --mode latest --limit 5
 ```
 
 ## 命令
@@ -80,6 +84,10 @@ use-grok image "把天空改成日落" --ref rocket.png --out rocket-sunset.png
 调用 Grok 内置的 `image_gen` 工具生成图像；传入一个或多个 `--ref` 参考图时，则使用 `image_edit` 编辑已有图像。最终图像保存到 `--out`（默认 `./grok-image-<时间戳>.png`）；`--json` 输出中包含 `out` 路径。支持的宽高比：`1:1`、`16:9`、`9:16`、`4:3`、`3:4`、`auto`。
 
 由于图像工具需要写文件，该命令始终以写权限运行 Grok（等同 `run --write`）。CLI 会指示 Grok 只写入指定的 `--out` 文件，但这只是提示词约束，并非沙箱隔离。运行结束后 CLI 会校验 `--out` 文件存在且非空，否则判定失败。
+
+### `use-grok x-search <query> [--from <handle>] [--mode latest|top] [--limit <n>] [--model <model>] [--effort low|medium|high] [--json]`
+
+通过 Grok 后端的 XSearch / `x_keyword_search` 搜索 X（Twitter）。提示词禁止回退到 `web_search`。结果是类似网页搜索的命中列表（url、handle、snippet，有日期则带 date），不是综述。`--from` 会加上 `from:handle`（自动去掉开头的 `@`）。`--mode` 默认 `latest`；`--limit` 默认 `10`。
 
 ### `use-grok runs [run-id] [--wait] [--json]`
 

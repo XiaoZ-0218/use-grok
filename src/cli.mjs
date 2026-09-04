@@ -12,6 +12,7 @@ import {
   getGrokAuthStatus,
   getGrokAvailability,
   IMAGE_ASPECT_RATIOS,
+  X_SEARCH_MODES,
   parseStructuredOutput,
   resolveGrokBinary,
   resolveSchemaPath,
@@ -20,6 +21,8 @@ import {
   runImage,
   runReview,
   runTask,
+  runXSearch,
+  buildXSearchPrompt,
   schemaInstructionsFromPath,
 } from "./grok.mjs";
 import {
@@ -69,6 +72,7 @@ Usage:
   use-grok critique [--wait] [--background] [--base <ref>] [--scope auto|working-tree|branch] [--model <model>] [--effort <effort>] [--json] [focus...]
   use-grok run <prompt> [--background] [--write] [--model <model>] [--effort <effort>] [--json]
   use-grok image <prompt> [--out <path>] [--aspect-ratio <ratio>] [--ref <image>...] [--background] [--wait] [--model <model>] [--effort <effort>] [--json]
+  use-grok x-search <query> [--from <handle>] [--mode latest|top] [--limit <n>] [--model <model>] [--effort <effort>] [--json]
   use-grok runs [run-id] [--wait] [--all] [--timeout-ms <ms>] [--poll-interval-ms <ms>] [--json]
   use-grok show [run-id] [--json]
   use-grok stop [run-id] [--json]
@@ -151,6 +155,28 @@ function normalizeAspectRatio(value) {
   throw new Error(
     `Invalid aspect ratio: ${value}. Use one of: ${IMAGE_ASPECT_RATIOS.join(", ")}.`
   );
+}
+
+function normalizeXSearchMode(value) {
+  const normalized = String(value ?? "latest").toLowerCase();
+  if (X_SEARCH_MODES.includes(normalized)) {
+    return normalized === "top" ? "Top" : "Latest";
+  }
+  throw new Error(`Invalid mode: ${value}. Use latest or top.`);
+}
+
+function normalizeXSearchLimit(value) {
+  if (value == null || value === "") return 10;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(`Invalid limit: ${value}. Use a positive integer.`);
+  }
+  return n;
+}
+
+function normalizeXSearchFrom(value) {
+  if (!value) return undefined;
+  return String(value).replace(/^@+/, "").trim() || undefined;
 }
 
 function defaultImageOutPath(cwd) {
@@ -503,6 +529,33 @@ async function handleImage(args) {
   return reportImageResult({ job: finalJob, outPath, runId: finalJob.id, json: flags.json });
 }
 
+async function handleXSearch(args) {
+  const { flags, positionals } = parseArgs(args, {
+    valueOptions: ["from", "mode", "limit", "model", "effort"],
+    booleanOptions: ["json"],
+  });
+  const cwd = resolveCommandCwd(flags);
+  const query = collectPrompt(positionals, flags);
+
+  const prompt = buildXSearchPrompt({
+    query,
+    from: normalizeXSearchFrom(flags.from),
+    mode: normalizeXSearchMode(flags.mode),
+    limit: normalizeXSearchLimit(flags.limit),
+  });
+
+  const result = await runXSearch(cwd, prompt, commonGrokOptions(flags));
+
+  if (flags.json) {
+    outputResult({ status: result.status, output: result.rawOutput.trim() }, { json: true });
+  } else {
+    process.stdout.write(result.rawOutput);
+    if (!result.rawOutput.endsWith("\n")) process.stdout.write("\n");
+  }
+
+  return result.status === 0 ? 0 : 1;
+}
+
 function imageOutExists(outPath) {
   return fs.existsSync(outPath) && fs.statSync(outPath).size > 0;
 }
@@ -798,6 +851,8 @@ export async function main(argv) {
         return await handleRun(subArgs);
       case "image":
         return await handleImage(subArgs);
+      case "x-search":
+        return await handleXSearch(subArgs);
       case "runs":
         return await handleRuns(subArgs);
       case "show":
