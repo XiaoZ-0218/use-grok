@@ -55,6 +55,9 @@ use-grok image "Turn the sky into a sunset" --ref rocket.png --out rocket-sunset
 # Search X (Twitter)
 use-grok x-search "grok 4.6" --json
 use-grok x-search "openai" --from elonmusk --mode latest --limit 5
+use-grok x-search "what is grok saying about tesla" --kind semantic --json
+use-grok x-search "elon musk" --kind user --json
+use-grok x-search "https://x.com/elonmusk/status/2084652192024125768" --kind thread --json
 ```
 
 ## Commands
@@ -85,9 +88,9 @@ Generate an image with Grok's built-in `image_gen` tool, or edit existing images
 
 Because the image tools write files, this command always runs Grok with write permission (like `run --write`). Grok is instructed to write only the requested `--out` file, but that is prompt guidance, not a sandbox restriction. The command verifies the `--out` file exists and is non-empty after the run and fails otherwise.
 
-### `use-grok x-search <query> [--from <handle>] [--mode latest|top] [--limit <n>] [--model <model>] [--effort low|medium|high] [--json]`
+### `use-grok x-search <query> [--kind keyword|semantic|user|thread] [--from <handle>] [--mode latest|top] [--limit <n>] [--model <model>] [--effort low|medium|high] [--json]`
 
-Search X (Twitter) through Grok's backend XSearch / `x_keyword_search`. The prompt forbids falling back to `web_search`. Results are a web-search-style hit list (url, handle, snippet, date if known), not a synthesized summary. `--from` adds `from:handle` (a leading `@` is stripped). `--mode` defaults to `latest`; `--limit` defaults to `10`.
+Search X (Twitter) through Grok's backend XSearch. `--kind` picks the backend tool: `keyword` (`x_keyword_search`, default), `semantic` (`x_semantic_search`), `user` (`x_user_search`), or `thread` (`x_thread_fetch`). The prompt forbids falling back to `web_search`. Post results are a hit list with url, handle, full `text`, and date; user results use url, handle, name, and bio. `--from` adds `from:handle` (a leading `@` is stripped) and `--mode` chooses Latest/Top; both apply only to keyword and semantic search. `--mode` defaults to `latest`; `--limit` defaults to `10`. For `--kind thread`, pass a post URL or status id as the query.
 
 ### `use-grok runs [run-id] [--wait] [--json]`
 

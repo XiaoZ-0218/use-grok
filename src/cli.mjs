@@ -13,6 +13,7 @@ import {
   getGrokAvailability,
   IMAGE_ASPECT_RATIOS,
   X_SEARCH_MODES,
+  X_SEARCH_KINDS,
   parseStructuredOutput,
   resolveGrokBinary,
   resolveSchemaPath,
@@ -73,7 +74,7 @@ Usage:
   use-grok critique [--wait] [--background] [--base <ref>] [--scope auto|working-tree|branch] [--model <model>] [--effort <effort>] [--json] [focus...]
   use-grok run <prompt> [--background] [--write] [--model <model>] [--effort <effort>] [--json]
   use-grok image <prompt> [--out <path>] [--aspect-ratio <ratio>] [--ref <image>...] [--background] [--wait] [--model <model>] [--effort <effort>] [--json]
-  use-grok x-search <query> [--from <handle>] [--mode latest|top] [--limit <n>] [--model <model>] [--effort <effort>] [--json]
+  use-grok x-search <query> [--kind keyword|semantic|user|thread] [--from <handle>] [--mode latest|top] [--limit <n>] [--model <model>] [--effort <effort>] [--json]
   use-grok runs [run-id] [--wait] [--all] [--timeout-ms <ms>] [--poll-interval-ms <ms>] [--json]
   use-grok show [run-id] [--json]
   use-grok stop [run-id] [--json]
@@ -173,6 +174,14 @@ function normalizeXSearchLimit(value) {
     throw new Error(`Invalid limit: ${value}. Use a positive integer.`);
   }
   return n;
+}
+
+function normalizeXSearchKind(value) {
+  const normalized = String(value ?? "keyword").toLowerCase();
+  if (X_SEARCH_KINDS.includes(normalized)) {
+    return normalized;
+  }
+  throw new Error(`Invalid kind: ${value}. Use keyword, semantic, user, or thread.`);
 }
 
 function normalizeXSearchFrom(value) {
@@ -532,16 +541,19 @@ async function handleImage(args) {
 
 async function handleXSearch(args) {
   const { flags, positionals } = parseArgs(args, {
-    valueOptions: ["from", "mode", "limit", "model", "effort"],
+    valueOptions: ["kind", "from", "mode", "limit", "model", "effort"],
     booleanOptions: ["json"],
   });
   const cwd = resolveCommandCwd(flags);
   const query = collectPrompt(positionals, flags);
 
+  const kind = normalizeXSearchKind(flags.kind);
+  const ranked = kind === "keyword" || kind === "semantic";
   const prompt = buildXSearchPrompt({
     query,
-    from: normalizeXSearchFrom(flags.from),
-    mode: normalizeXSearchMode(flags.mode),
+    kind,
+    from: ranked ? normalizeXSearchFrom(flags.from) : undefined,
+    mode: ranked ? normalizeXSearchMode(flags.mode) : undefined,
     limit: normalizeXSearchLimit(flags.limit),
   });
 

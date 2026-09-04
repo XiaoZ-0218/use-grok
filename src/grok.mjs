@@ -408,41 +408,66 @@ export async function runImage(cwd, prompt, options = {}) {
 // ---------------------------------------------------------------------------
 
 export const X_SEARCH_MODES = ["latest", "top"];
+export const X_SEARCH_KINDS = ["keyword", "semantic", "user", "thread"];
+
+const X_SEARCH_TOOLS = {
+  keyword: "x_keyword_search",
+  semantic: "x_semantic_search",
+  user: "x_user_search",
+  thread: "x_thread_fetch",
+};
 
 /**
  * Build the headless prompt that drives Grok's backend X search and asks for
  * web-search-style hits instead of a synthesized summary.
  * @param {object} params
  * @param {string} params.query
+ * @param {string} [params.kind] - keyword, semantic, user, or thread
  * @param {string} [params.from] - X handle without leading @
  * @param {string} [params.mode] - Latest or Top
  * @param {number} [params.limit]
  * @returns {string}
  */
-export function buildXSearchPrompt({ query, from, mode, limit }) {
+export function buildXSearchPrompt({ query, kind = "keyword", from, mode, limit }) {
+  const tool = X_SEARCH_TOOLS[kind] ?? X_SEARCH_TOOLS.keyword;
+  const ranked = kind === "keyword" || kind === "semantic";
   const lines = [];
-  lines.push(
-    "Use X search (x_keyword_search / the XSearch backend), NOT web_search or web_fetch."
-  );
+  lines.push(`Use X search (${tool} / the XSearch backend), NOT web_search or web_fetch.`);
+  lines.push(`- kind: ${kind}`);
   lines.push(`- query: ${query}`);
-  if (from) {
+  if (from && ranked) {
     lines.push(`- from: ${from} (include from:${from} in the X query)`);
   }
-  if (mode) {
+  if (mode && ranked) {
     lines.push(`- mode: ${mode}`);
   }
   if (limit != null) {
     lines.push(`- limit: ${limit}`);
   }
+  if (kind === "semantic") {
+    lines.push("- Treat the query as natural language, not only keywords.");
+  }
+  if (kind === "thread") {
+    lines.push("- Query is a post URL or status id; fetch the whole thread.");
+  }
   lines.push("");
   lines.push("Return only a search-result list like web search hits, not a synthesized summary.");
   lines.push("Do not write any preamble, narration, or closing remarks.");
   lines.push("Do not mention tools, skills, or use-grok.");
-  lines.push("For each post use exactly this shape:");
-  lines.push("1. url: <url>");
-  lines.push("   handle: @<handle>");
-  lines.push("   snippet: <text>");
-  lines.push("   date: <iso-or-unknown>");
+  if (kind === "user") {
+    lines.push("For each account use exactly this shape:");
+    lines.push("1. url: <url>");
+    lines.push("   handle: @<handle>");
+    lines.push("   name: <display name>");
+    lines.push("   bio: <bio>");
+  } else {
+    lines.push("For each post use exactly this shape:");
+    lines.push("1. url: <url>");
+    lines.push("   handle: @<handle>");
+    lines.push("   text: <full post text>");
+    lines.push("   date: <iso-or-unknown>");
+    lines.push("Copy the full post text verbatim into text. Do not summarize or truncate.");
+  }
   lines.push(
     "If X search is unavailable or the operation fails, output exactly X_SEARCH_UNAVAILABLE instead of falling back to web_search."
   );
